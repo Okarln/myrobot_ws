@@ -1,0 +1,268 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="myfirst">
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <!-- 长方体的长宽高 -->
+        <box size="0.8 0.8 0.1" />
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </visual>
+    <collision>
+      <geometry><box size="0.8 0.8 0.1"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="10.0"/>
+      <inertia ixx="0.542" ixy="0" ixz="0" iyy="0.542" iyz="0" izz="1.067"/>
+    </inertial>
+  </link>
+
+  <link name="left_front_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+    </inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="left_front_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_front_wheel"/>
+    <origin xyz="0.4 0.4 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+
+  <link name="right_front_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+    </inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="right_front_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_front_wheel"/>
+    <origin xyz="0.4 -0.4 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="left_back_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+    </inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="left_back_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_back_wheel"/>
+    <origin xyz="-0.4 0.4 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <link name="right_back_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+    </inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="right_back_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_back_wheel"/>
+    <origin xyz="-0.4 -0.4 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- 顶部统一定义材质,全局一次 -->
+<material name="blue"><color rgba="0 0 1 0.8"/></material>
+<material name="black"><color rgba="0 0 0 0.9"/></material>
+<material name="red"><color rgba="1 0 0 1"/></material>
+
+<!-- ============ IMU:一个小盒,装在底盘中心上方 ============ -->
+<link name="imu_link">
+  <visual>
+    <geometry><box size="0.02 0.02 0.01"/></geometry>
+    <material name="blue"/>
+  </visual>
+  <inertial>
+    <mass value="0.01"/>
+    <inertia ixx="4.2e-7" ixy="0" ixz="0" iyy="4.2e-7" iyz="0" izz="6.7e-7"/>
+  </inertial>
+</link>
+<joint name="imu_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="imu_link"/>
+  <origin xyz="-0.2 0 0.06" rpy="0 0 0"/>   <!-- 这就是 IMU 的安装外参 -->
+</joint>
+
+<!-- ============ 激光雷达:一个扁圆柱,装在车头 ============ -->
+<link name="laser_link">
+  <visual>
+    <geometry><cylinder radius="0.025" length="0.03"/></geometry>
+    <material name="black"/>
+  </visual>
+  <inertial>
+    <mass value="0.05"/>
+    <inertia ixx="1.16e-5" ixy="0" ixz="0" iyy="1.16e-5" iyz="0" izz="1.56e-5"/>
+  </inertial>
+</link>
+<joint name="laser_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="laser_link"/>
+  <origin xyz="0.2 0 0.07" rpy="0 0 0"/>    <!-- 雷达安装位姿,必须与实物/仿真一致 -->
+</joint>
+
+<ros2_control name="MyRobotGazeboSystem" type="system">   <!-- name 随意;type: system/sensor/actuator -->
+  <hardware>
+    <plugin>gazebo_ros2_control/GazeboSystem</plugin>     <!-- 核心一格:选硬件后端,见下 -->
+  </hardware>
+
+    <joint name="left_front_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_front_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_back_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_back_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint></ros2_control>
+
+
+
+<gazebo>
+  <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
+    <parameters>$(find myrobot_description)/config/ros2_controller.yaml</parameters>
+    <ros>
+      <remapping>/diff_drive_controller/cmd_vel_unstamped:=/cmd_vel</remapping>
+      <remapping>/diff_drive_controller/odom:=/odom</remapping>
+    </ros>
+  </plugin>
+</gazebo>
+
+<gazebo reference="laser_link">
+  <sensor name="laser" type="gpu_lidar">
+    <pose>0 0 0 0 0 0</pose>
+    <visualize>true</visualize>              <!-- 在 Gazebo 里画出红色扫描线 -->
+    <update_rate>10</update_rate>
+    <topic>scan</topic>            <!-- 发到 Ignition 传输层,由桥接转成 ROS /scan -->            <!-- 每秒 10 帧扫描 -->
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>360</samples>             <!-- 一圈采 360 个点,约 1° 分辨率 -->
+          <resolution>1</resolution>
+          <min_angle>-3.1415926</min_angle>  <!-- -180°( REP-103:0° 朝 x,逆时针为正)-->
+          <max_angle>3.1415926</max_angle>   <!-- +180°,即 360° 全向 -->
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.12</min>                      <!-- 最小盲区(实物雷达贴脸测不到)-->
+        <max>8.0</max>                       <!-- 最大量程 8 m -->
+        <resolution>0.01</resolution>
+      </range>
+      <noise>
+        <type>gaussian</type>
+        <stddev>0.01</stddev>                <!-- 模拟测量噪声 -->
+      </noise>
+    </ray>
+  </sensor>
+</gazebo>
+
+<gazebo reference="imu_link">
+  <sensor name="imu" type="imu">
+    <always_on>true</always_on>
+    <update_rate>100</update_rate>
+    <topic>imu/data</topic>           <!-- IMU 惯例 100Hz 起步 -->
+    <visualize>false</visualize>
+  </sensor>
+</gazebo>
+
+</robot>

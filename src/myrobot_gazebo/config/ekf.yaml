@@ -1,0 +1,72 @@
+# robot_localization EKF:轮式里程计 + IMU 融合,发布 odom→base_link TF
+# 融合策略参照 husarion rosbot_ros 的 rosbot_localization/config/config.yaml
+#
+# 职责分工:diff_drive_controller 只发 /odom 数据(enable_odom_tf: false),
+# 本节点统一发布 odom→base_link —— 全栈只有一个 TF 权威,仿真/实车同构。
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    frequency: 25.0            # 输出频率(rosbot 同款)
+    sensor_timeout: 0.05
+    two_d_mode: true           # 平面机器人:z/roll/pitch 约束为 0
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom          # 连续里程计定位;map→odom 由 slam_toolbox(或以后 AMCL)管
+
+    transform_time_offset: 0.0
+    transform_timeout: 0.05
+    publish_tf: true
+    publish_acceleration: false
+
+    # ── 传感器 1:轮式里程计 → 融合 vx + vyaw(速度层,不做位姿积分)──
+    # 四轮车打滑时轮式 vyaw 会虚高,与下面 IMU 的两路角信息互相校验压制
+    odom0: /odom
+    odom0_config: [false, false, false,   # x    y    z
+                   false, false, false,   # roll pitch yaw
+                   true,  false, false,   # vx   vy   vz
+                   false, false, true,    # vroll vpitch vyaw
+                   false, false, false]   # ax   ay   az
+    odom0_queue_size: 5
+    odom0_nodelay: true
+    odom0_differential: false
+    odom0_relative: false
+
+    # ── 传感器 2:IMU → 融合绝对 yaw + vyaw ─────────────────────
+    # 数据来自 imu_sensor_broadcaster(gz_ros2_control 的 IMU 通道)
+    # imu0_relative: true 是关键(rosbot 同款):gz/实物 IMU 的姿态都以
+    # 开机时刻为参考,取第一帧作为零点,绝对 yaw 才有意义、长期不漂
+    imu0: /imu_sensor_broadcaster/imu
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 5
+    imu0_nodelay: true
+    imu0_differential: false
+    imu0_relative: true
+    imu0_remove_gravitational_acceleration: true
+
+    reset_on_time_jump: false
+    predict_to_current_time: false
+    print_diagnostics: false
+
+    # 动态过程噪声 + 实验整定初值(数值取自 rosbot,保证较快收敛)
+    dynamic_process_noise_covariance: true
+    process_noise_covariance: [5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5,  0.0,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5,  0.0,
+                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5]

@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+<!--
+  ============================ field.world 阅读指南 ============================
+
+  这是 Fortress(gz-sim)的世界文件:描述"场上有什么"。整个场地分三块:
+
+    1. ground_plane —— 无限大的承重地面(100x100m,纯物理支撑,地图上没有它)
+    2. field_model  —— 比赛场地本体,一整张 STL 网格(地图就是从它生成的)
+    3. railing_patch —— 手工补的墙段(原始 STL 缺失,见下文)
+
+  场地尺寸与坐标系(单位:米):
+    - 全场约 12 x 12,x 向东、y 向北、z 向上,原点在场地西南角
+    - 地面顶面 z≈0.05,四周围栏边石高到 z≈0.15
+    - 机器人出生点 (11.5, 11.5, 朝向 1.57),在东北角
+
+  地图(field_map.pgm)与本文的关系:
+    - map/field_map.pgm 由 make_map.py 从同一张 field.stl 投影生成
+      (把 z∈[0.10,0.30] "激光雷达带"内的竖直墙面画成黑色障碍)
+    - 所以 world 里的 field_model = 地图上的所有黑线 + 灰色平台
+
+  场地结构速查(ASCII 小地图,↑ 为 y 正方向):
+
+    y=12  ┌────────────────────────────────┐  北边:围栏边石(高0.15)
+          │        东北角=出生点(11.5,11.5) │
+          │  x4.85┌──────┐x7.30            │
+          │      │ 中央通道 │   ← U形贴地标线围出的区域 │
+          │      │ x=6矮墙 │   ← 补丁就在这堵墙上       │
+    y=9.45├══════╡        ╞══════┤
+          │ 左栅栏 │        │ 右栅栏 │   左:x1.25~4.85  右:x7.30~10.90
+          │ (0.65高)│        │(0.65高)│   低墙0.2m + 栅栏到0.65m,即地图上
+          │       │        │       │   两大片"窗格"障碍
+    y=4.65├══════╡        ╞══════┤
+          │       │x=6矮墙  │       │
+    y=2.75├──────────────────────┤  南边:整面高墙(高0.60)
+          │      南侧平台区         │
+    y=0   └──────────────────────┘
+          x=0                  x=12.15
+
+  STL 来源:SOLIDWORKS 的 场地.STEP,经 step2stl.py 转换
+  (mm→m 缩放,Y 轴朝上转成 Z 轴朝上,地面落到 z=0)。
+-->
+<sdf version="1.6">
+  <world name="field">
+
+    <!-- 物理引擎参数:步长 1ms、实时倍率 1.0(ros2_control 更新率 100Hz 比它慢) -->
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <gravity>0 0 -9.8</gravity>
+
+    <!-- 五个系统插件:没有它们世界无法运行 -->
+    <plugin filename="ignition-gazebo-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-contact-system" name="gz::sim::systems::Contact"/>
+    <!-- 传感器渲染系统:gpu_lidar 出数据靠它(只管渲染类传感器) -->
+    <plugin filename="ignition-gazebo-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <!-- IMU 专属系统:不加它,模型里的 imu 传感器不会被创建(数据全零的根因) -->
+    <plugin filename="ignition-gazebo-imu-system" name="gz::sim::systems::Imu"/>
+
+    <!-- 太阳光:只有照明作用,不参与碰撞,地图上不存在 -->
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <!-- ============ ① 无限地面:全场唯一"不在地图上"的实体 ============ -->
+    <!-- 100x100 的平板,顶面 z=0,在场地 STL 的底面之下托住一切。
+         地图只画场地本身,所以这张桌子在 field_map.pgm 里没有对应像素。 -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ============ ② 场地本体:地图上的全部内容都在这一个模型里 ============ -->
+    <!-- 一整张 STL 网格(7732 个三角形),包含:
+           - 12x12 场地地板(顶面 z≈0.05)
+           - 四周围栏边石(高到 z≈0.15),北/东/西三边
+           - 南侧整面高墙 x[0,12.15] y[0,2.75](高到 z≈0.60)
+           - 左栅栏区 x[1.25,4.85] y[4.65,9.45](低墙 0.2m + 栅栏到 0.65m)
+           - 右栅栏区 x[7.30,10.90] y[4.65,9.45](同上)
+           - 中央通道里 x[6.05,6.10] 的矮墙(高 0.1m,y 从 2.6 到 10.5,
+             以及 y 11.7 到边界的一小段 —— 中间缺口已由下方补丁接上)
+           - 北边 U 形贴地标线(x4.85/x7.3 两条 3cm 窄条,纯地面痕迹)
+         visual = 看到的样子;collision = 激光/碰撞检测用的形状,两者同网格。
+         地图 make_map.py 投影的就是这张 STL,所以"地图上每条黑线"都能
+         在这个 mesh 里找到对应墙面。 -->
+    <model name="field_model">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="field_link">
+        <inertial>
+          <mass>1000.0</mass>
+          <inertia>
+            <ixx>1000</ixx><iyy>1000</iyy><izz>1000</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <visual name="field_visual">
+          <geometry>
+            <mesh>
+              <uri>/home/legolas/field_sim/field_model/meshes/field.stl</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>0.75 0.75 0.78 1</ambient>
+            <diffuse>0.75 0.75 0.78 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+        <collision name="field_collision">
+          <geometry>
+            <mesh>
+              <uri>/home/legolas/field_sim/field_model/meshes/field.stl</uri>
+            </mesh>
+          </geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+      </link>
+    </model>
+
+    <!-- ============ ③ 手工补丁:STL 里缺失的一段墙 ============ -->
+    <!-- 中央通道 x=6.05~6.10 的矮墙在 y=10.5 处断掉,y=11.7 才重新出现,
+         原始 CAD 转 STL 时就缺了 y∈[10.5,11.7] 这 1.2m。
+         这里用一个和两侧墙段同尺寸的静态 box 接上(即地图上 x≈5~6、y≈11
+         那一小段"没连上的栏杆"):
+           位置 (6.075, 11.1, 0.10),尺寸 0.05(x) x 1.2(y) x 0.10(z) -->
+    <model name="railing_patch">
+      <static>true</static>
+      <pose>6.075 11.1 0.10 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.05 1.2 0.10</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.05 1.2 0.10</size></box>
+          </geometry>
+          <material>
+            <ambient>0.75 0.75 0.78 1</ambient>
+            <diffuse>0.75 0.75 0.78 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

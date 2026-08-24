@@ -1,0 +1,33 @@
+# slam_toolbox 在线异步建图参数(Humble)
+# 分辨率/节流对齐 husarion rosbot 的取值,兼顾 12x12 场地与软件渲染性能
+slam_toolbox:
+  ros__parameters:
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_residual_threshold: 5.0
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: HUBER
+
+    map_update_interval: 3.0     # 秒,往 /map 发一次增量
+    minimum_time_interval: 0.4   # 两次扫描匹配的最小间隔
+    transform_publish_period: 0.05  # map→odom TF 发布周期(20Hz)
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+    throttle_scans: 1            # 每帧都参与(rosbot 同款)
+
+    resolution: 0.05             # 栅格 5cm(rosbot 同款;3cm 内存/CPU 翻倍,收益有限)
+    max_laser_range: 7.9         # 与 URDF 雷达量程 8.0 对齐,略小避免边界点
+    minimum_laser_range: 0.70    # 过滤自遮挡:雷达居中,轮子回波最远~0.66m
+    minimum_travel_distance: 0.4 # 走 40cm 才加一个约束:场地左右两片窗格栅栏
+    minimum_travel_heading: 0.3  # 高度自相似,约束太密容易产生错误匹配
+
+    scan_topic: /scan
+    odom_frame: odom
+    base_frame: base_link
+    map_frame: map
+    mode: mapping
+
+    # 注:若建图时两片栅栏区出现"鬼影"重影,优先实验回环参数
+    # (loop_match_minimum_chain_size / loop_search_space 等)而不是继续提高分辨率

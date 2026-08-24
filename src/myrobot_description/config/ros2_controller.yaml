@@ -1,0 +1,49 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100            # 框架主循环频率 Hz(read→update→write)
+    use_sim_time: true          # 仿真必开:跟 Gazebo 时钟走
+
+    # 订购清单:名字必须与 launch 里 spawner 参数、URDF remapping 前缀一致
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+joint_state_broadcaster:
+  ros__parameters:
+    use_sim_time: true          # jsb 零参数,广播所有 state_interface
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    sensor_name: imu            # 对应 <ros2_control> 里的 <sensor name="imu">
+    frame_id: imu_link
+    # 话题默认发布在 /imu_sensor_broadcaster/imu,EKF 从那里取数
+
+diff_drive_controller:
+  ros__parameters:
+    use_sim_time: true
+
+    # 绑定:<ros2_control> 里声明的四个轮子 joint,左右各两个
+    left_wheel_names:  ["left_front_wheel_joint", "left_back_wheel_joint"]
+    right_wheel_names: ["right_front_wheel_joint", "right_back_wheel_joint"]
+
+    # 运动学参数(与 URDF 几何一致)
+    wheel_separation: 0.8       # 左右轮距:±0.4
+    wheel_radius: 0.1           # 轮半径
+
+    publish_rate: 50.0          # /odom 发布频率
+    odom_frame_id: odom
+    base_frame_id: base_link    # 必须是 URDF 的根 link 名
+
+    pose_covariance_diagonal:  [0.0, 0.0, 0.001, 0.0, 0.0, 0.001]
+    twist_covariance_diagonal: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    open_loop: false            # 闭环:用实测轮速算里程计(更真实)
+    enable_odom_tf: false       # TF 权威只有一个:odom→base_link 由 EKF 发布
+                                 # (rosbot 同款分工:diff_drive 只出数据,robot_localization 出 TF)
+                                 # 注意:必须与 launch 里的 ekf_node 同时运行,否则缺 TF
+    cmd_vel_timeout: 0.5        # 0.5s 无指令自动停车
+    use_stamped_vel: false      # 收普通 Twist,对应订阅 .../cmd_vel_unstamped

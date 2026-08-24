@@ -1,0 +1,61 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+    myrobot_joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    myrobot_diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+
+myrobot_joint_state_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    use_sim_time: true
+    sensor_name: imu            # 对应 URDF 中 <ros2_control> 里的 <sensor name="imu">
+    frame_id: imu_link
+    # 话题默认发布在 /imu_sensor_broadcaster/imu，EKF 从这里取数据
+
+
+myrobot_diff_drive_controller:
+  ros__parameters:
+    use_sim_time: true
+
+    # ── 绑定:使用 URDF 中定义的四个轮子关节 ─────────────────────
+    # 左侧两个轮子
+    left_wheel_names:  ["left_front_wheel_joint", "left_back_wheel_joint"]
+    # 右侧两个轮子
+    right_wheel_names: ["right_front_wheel_joint", "right_back_wheel_joint"]
+
+    # ── 运动学参数:与 URDF 几何一致 ──────────────────
+    # URDF 中轮子 y 坐标 = ±0.2，所以轮距 = 0.4m
+    wheel_separation: 0.4
+    wheel_radius: 0.10
+
+    # ── 标定修正系数(可选,默认 1.0)──────────────────
+    wheel_separation_multiplier: 1.0     # 实测"让它转 360° 只转了 350°"时,微调这两个
+    left_wheel_radius_multiplier: 1.0    # 系数做软校准,不用改模型
+    right_wheel_radius_multiplier: 1.0
+
+    # ── 输出配置 ─────────────────────────────────
+    publish_rate: 50.0                   # /odom 发布频率 Hz
+    odom_frame_id: odom                  # 里程计 TF 的父坐标系名
+    base_frame_id: base_link             # TF 的子坐标系;必须和你 URDF 的根 link 名一致,
+                                         # 写错 → TF 树断裂,RViz 里整个机器人消失
+    pose_covariance_diagonal:  [0.0, 0.0, 0.001, 0.0, 0.0, 0.001]  # 位姿协方差(x y z rx ry rz)
+    twist_covariance_diagonal: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]      # 给 EKF 融合用的"可信度",
+                                         # 纯仿真填 0 即可
+    # ── 行为开关 ─────────────────────────────────
+    open_loop: true            # true:只把轮速指令发下去,不拿反馈闭环校验(仿真稳,书用 true)
+                              # false:按 state_interface 的实测轮速算里程计(更真实)
+    enable_odom_tf: false      # odom→base_link 的 TF 只由 EKF(ekf.yaml)发布,
+                               # 两家抢着发 → TF/里程计互相矛盾,导航原地打转
+    cmd_vel_timeout: 0.5       # 超过 0.5 秒没收到 /cmd_vel 就停车(失控保护)
+    use_stamped_vel: false     # false=收普通 Twist,对应订阅 .../cmd_vel_unstamped
+                              # true=收 TwistStamped(带时间戳),话题名变成 .../cmd_vel

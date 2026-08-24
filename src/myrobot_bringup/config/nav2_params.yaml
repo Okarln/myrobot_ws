@@ -1,0 +1,198 @@
+# Nav2 参数(按 myrobot:0.8x0.8 差速车、EKF 里程计、/cmd_vel 走护栏通道整定)
+# 关键点:
+#  - cmd_vel 链路:nav2 发 /cmd_vel → cmd_vel_guard → /cmd_vel_safe → 控制器,
+#    导航指令天然过安全护栏
+#  - 雷达在底盘下方(base 系 z=-0.06),局部代价地图的障碍高度范围必须含负值,
+#    否则扫出来的点全部落在外面,局部避障会失效
+#  - TF 分工:EKF 发 odom→base_link,AMCL 发 map→odom(不再跑 slam_toolbox)
+
+amcl:
+  ros__parameters:
+    use_sim_time: true
+    base_frame_id: base_link
+    odom_frame_id: odom
+    scan_topic: scan_filtered
+    # 建图与本次启动都在同一出生点,odom(0,0) 即 map(0,0),直接给定初值
+    set_initial_pose: true
+    initial_pose: {x: 0.0, y: 0.0, z: 0.0, yaw: 0.0}
+    robot_model_type: nav2_amcl::DifferentialMotionModel   # Humble 要全限定名
+    laser_model_type: likelihood_field
+    odom_alpha1: 0.15        # 轮子打滑导致里程计误差偏大,放宽
+    odom_alpha2: 0.15
+    odom_alpha3: 0.2
+    odom_alpha4: 0.15
+    laser_max_range: 8.0
+    max_beams: 180
+    particle_count: 500
+    recovery_alpha_slow: 0.001
+    recovery_alpha_fast: 0.1
+    tf_broadcast: true
+
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    yaml_filename: ""        # 由 launch 的 map 参数注入
+
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    global_frame: map
+    robot_base_frame: base_link
+
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    controller_frequency: 10.0
+    min_x_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+    controller_plugins: ["FollowPath"]
+    FollowPath:
+      plugin: dwb_core::DWBLocalPlanner
+      debug_trajectory_details: false
+      min_vel_x: 0.0
+      max_vel_x: 0.3         # 与遥控同量级,护栏阈值内
+      max_vel_theta: 0.5
+      min_speed_xy: 0.0
+      max_accel_x: 0.4
+      max_decel_x: 0.4
+      max_speed_xy: 0.3
+      acc_lim_x: 0.4        # 参数名必须是 acc_lim_x(max_accel_x 会被静默忽略,线加速实际为0)
+      decel_lim_x: -0.4     # 减速上限必须为负!正值会让采样区间反转
+      acc_lim_theta: 1.0
+      decel_lim_theta: -1.0 # 减速上限必须为负!正值 → 唯一采样=当前角速度+1.5,永远原地转圈
+      vx_samples: 12
+      vtheta_samples: 20
+      sim_time: 1.5
+      linear_granularity: 0.05
+      angular_granularity: 0.1
+      transform_tolerance: 0.3
+      xy_goal_tolerance: 0.15
+      trans_stopped_velocity: 0.05
+      short_circuit_trajectory_evaluation: true
+      stateful: true
+      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
+      BaseObstacle.scale: 0.10   # 窄通道:加重贴墙惩罚,配合 PathDist 把车压在中线
+      PathAlign.scale: 24.0
+      PathAlign.forward_point_distance: 0.1
+      GoalAlign.scale: 18.0
+      GoalAlign.forward_point_distance: 0.1
+      PathDist.scale: 26.0
+      GoalDist.scale: 20.0
+      RotateToGoal.scale: 24.0
+      RotateToGoal.slowing_factor: 5.0
+      RotateToGoal.lookahead_time: -1.0
+
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_planner_frequency: 5.0
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: nav2_navfn_planner/NavfnPlanner
+      tolerance: 0.3
+      use_astar: false
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+    local_costmap_topic: local_costmap/costmap_raw
+    global_costmap_topic: global_costmap/costmap_raw
+    local_footprint_topic: local_costmap/published_footprint
+    global_footprint_topic: global_costmap/published_footprint
+    cycle_frequency: 8.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "wait"]
+    spin:
+      plugin: nav2_behaviors/Spin
+    backup:
+      plugin: nav2_behaviors/BackUp
+    drive_on_heading:
+      plugin: nav2_behaviors/DriveOnHeading
+    wait:
+      plugin: nav2_behaviors/Wait
+    global_frame: odom
+    robot_base_frame: base_link
+    transform_tolerance: 0.3
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: true
+    loop_rate: 20
+    stop_on_failure: false
+
+# 不配置的话 velocity_smoother 用 nav2 默认值(角速度上限 2.5 rad/s),
+# 远超控制器 0.5 的限幅,异常/恢复指令会被原样放大给底盘
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.3, 0.0, 0.5]
+    min_velocity: [0.0, 0.0, -0.5]
+    max_accel: [0.4, 0.0, 1.0]
+    max_decel: [-0.4, 0.0, -1.0]
+    odom_topic: "odom"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: true
+      global_frame: map
+      # 方形 footprint 按实际车形判碰撞(横向只需±0.2),比外接圆 robot_radius 0.28
+      # 更适合窄通道;四角 0.283 仍由 inflation_radius≥0.283 兜底
+      footprint: "[[0.2, 0.2], [0.2, -0.2], [-0.2, -0.2], [-0.2, 0.2]]"
+      resolution: 0.05
+      track_unknown_space: false   # 部分建图:未知区当自由区,否则目标点常落在"致命"区
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: nav2_costmap_2d::ObstacleLayer
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan_filtered
+          max_obstacle_height: 0.5
+          min_obstacle_height: -0.2   # 雷达在 base 下方,高度为负
+          clearing: True
+          marking: True
+          raytrace_max_range: 8.0
+          obstacle_max_range: 7.5
+      static_layer:
+        plugin: nav2_costmap_2d::StaticLayer
+        map_subscribe_transient_local: true
+      inflation_layer:
+        plugin: nav2_costmap_2d::InflationLayer
+        cost_scaling_factor: 15.0   # 陡衰减:离墙10cm外代价≈0,蓝色带视觉上只剩贴墙一线
+        inflation_radius: 0.35   # 必须≥机器人半径0.28,核心禁区才正确
+      always_send_full_costmap: true
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: true
+      global_frame: odom
+      rolling_window: true
+      width: 4
+      height: 4
+      resolution: 0.05
+      footprint: "[[0.2, 0.2], [0.2, -0.2], [-0.2, -0.2], [-0.2, 0.2]]"   # 同全局:按方形车判碰撞
+      plugins: ["obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: nav2_costmap_2d::ObstacleLayer
+        enabled: true
+        observation_sources: scan
+        scan:
+          topic: /scan_filtered
+          max_obstacle_height: 0.5
+          min_obstacle_height: -0.2   # 同上,负高度点必须被收进来
+          clearing: True
+          marking: True
+          raytrace_max_range: 8.0
+          obstacle_max_range: 7.5
+      inflation_layer:
+        plugin: nav2_costmap_2d::InflationLayer
+        cost_scaling_factor: 15.0
+        inflation_radius: 0.45
+      always_send_full_costmap: true

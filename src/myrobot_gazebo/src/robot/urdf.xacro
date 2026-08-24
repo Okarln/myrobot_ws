@@ -1,0 +1,349 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="myfirst">
+
+  <!-- 控制器配置可通过 xacro 参数替换(默认使用 myrobot_gazebo 自己的配置,
+       其中关节名和轮距参数与 URDF 几何一致)。
+       以后接实车硬件时,用 controller_yaml:=... 换成实车专用配置即可 -->
+  <xacro:arg name="controller_yaml" default="$(find myrobot_gazebo)/config/ros2_controller.yaml"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <!-- 长方体的长宽高 -->
+        <box size="0.4 0.4 0.1" />
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+    </visual>
+    <collision>
+  <geometry><box size="0.4 0.4 0.1"/></geometry>
+</collision>
+<inertial>
+  <mass value="10.0"/>
+  <inertia ixx="0.542" ixy="0" ixz="0" iyy="0.542" iyz="0" izz="1.067"/>
+</inertial>
+  </link>
+
+  <link name="left_front_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+  <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+  <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+</collision>
+<inertial>
+  <mass value="1.0"/>
+  <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+</inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="left_front_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_front_wheel"/>
+    <origin xyz="0.2 0.2 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- 麦轮式顺滑转弯的关键:滚动方向抓地(驱动),侧向低摩擦(允许横滑) -->
+  <gazebo reference="left_front_wheel">
+    <mu1>1.0</mu1>
+    <mu2>0.1</mu2>
+    <fdir1>1 0 0</fdir1>
+  </gazebo>
+
+
+  <link name="right_front_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+  <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+  <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+</collision>
+<inertial>
+  <mass value="1.0"/>
+  <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+</inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="right_front_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_front_wheel"/>
+    <origin xyz="0.2 -0.2 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <gazebo reference="right_front_wheel">
+    <mu1>1.0</mu1>
+    <mu2>0.1</mu2>
+    <fdir1>1 0 0</fdir1>
+  </gazebo>
+
+  <link name="left_back_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+  <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+  <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+</collision>
+<inertial>
+  <mass value="1.0"/>
+  <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+</inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="left_back_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_back_wheel"/>
+    <origin xyz="-0.2 0.2 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <gazebo reference="left_back_wheel">
+    <mu1>1.0</mu1>
+    <mu2>0.1</mu2>
+    <fdir1>1 0 0</fdir1>
+  </gazebo>
+
+  <link name="right_back_wheel">
+    <visual>
+      <!-- 只管朝向:圆柱默认轴 z,转 90° 让轮轴沿 y -->
+      <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+      <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+    </visual>
+    <!-- 转动标记:纯色圆柱绕轴转看不出来,贴个红块让旋转可见 -->
+    <visual>
+      <origin xyz="0 0.012 0.07" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.006 0.03"/></geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+  <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+  <geometry><cylinder radius="0.1" length="0.02"/></geometry>
+</collision>
+<inertial>
+  <mass value="1.0"/>
+  <inertia ixx="0.00253" ixy="0" ixz="0" iyy="0.005" iyz="0" izz="0.00253"/>
+</inertial>
+  </link>
+
+  <!-- 没有 joint 就没有 TF,RViz 会把轮子整个隐藏 -->
+  <joint name="right_back_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_back_wheel"/>
+    <origin xyz="-0.2 -0.2 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <gazebo reference="right_back_wheel">
+    <mu1>1.0</mu1>
+    <mu2>0.1</mu2>
+    <fdir1>1 0 0</fdir1>
+  </gazebo>
+
+  <!-- 顶部统一定义材质,全局一次 -->
+<material name="blue"><color rgba="0 0 1 0.8"/></material>
+<material name="black"><color rgba="0 0 0 0.9"/></material>
+<material name="red"><color rgba="1 0 0 1"/></material>
+
+<!-- ============ IMU:一个小盒,装在底盘中心上方 ============ -->
+<link name="imu_link">
+  <visual>
+    <geometry><box size="0.02 0.02 0.01"/></geometry>
+    <material name="blue"/>
+  </visual>
+  <inertial>
+  <mass value="0.01"/>
+  <inertia ixx="4.2e-7" ixy="0" ixz="0" iyy="4.2e-7" iyz="0" izz="6.7e-7"/>
+</inertial> 
+</link>
+<joint name="imu_joint" type="fixed">
+  <parent link="base_link"/>
+  <child link="imu_link"/>
+  <origin xyz="-0.2 0 0.06" rpy="0 0 0"/>   <!-- 这就是 IMU 的安装外参 -->
+</joint>
+
+<!-- ============ 激光雷达:一个扁圆柱,装在车头 ============ -->
+<link name="laser_link">
+  <visual>
+    <geometry><cylinder radius="0.025" length="0.03"/></geometry>
+    <material name="black"/>
+  </visual>
+  <inertial>
+  <mass value="0.01"/>
+  <inertia ixx="4.2e-7" ixy="0" ixz="0" iyy="4.2e-7" iyz="0" izz="6.7e-7"/>
+</inertial> 
+</link>
+<joint name="laser_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="laser_link"/>
+    <!-- 安装位姿三重考究:
+         1) 高度 z=-0.06(绝对 0.09m):必须在矮墙带 0.05~0.15m 内(扫得到边石/矮墙),
+            又必须低于底盘下沿 0.10m——否则光束打在底盘内壁上,360°全被自己挡住
+         2) 横向 x=0(车体中心):轮子自回波固定在 ±45°/±135°、距离 ~0.57-0.66m,
+            护栏与 slam_toolbox 用 0.70m 近距过滤干净剔除
+         3) 视觉上圆柱探出底盘下沿 ~2.5cm,像藏在底盘下的低置雷达 -->
+    <origin xyz="0 0 -0.06" rpy="0 0 0"/>    <!-- 雷达安装位姿,必须与实物/仿真一致 -->
+  </joint>
+
+<ros2_control name="MyRobotGazeboSystem" type="system">   <!-- name 随意;type: system/sensor/actuator -->
+  <hardware>
+    <plugin>ign_ros2_control/IgnitionSystem</plugin>      <!-- Fortress 后端:gz 仿真关节 ⇄ ros2_control -->
+  </hardware>
+
+    <joint name="left_front_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <command_interface name="effort">
+        <param name="min">-20</param>
+        <param name="max">20</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_front_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <command_interface name="effort">
+        <param name="min">-20</param>
+        <param name="max">20</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="left_back_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <command_interface name="effort">
+        <param name="min">-20</param>
+        <param name="max">20</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="right_back_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-1</param>
+        <param name="max">1</param>
+      </command_interface>
+      <command_interface name="effort">
+        <param name="min">-20</param>
+        <param name="max">20</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+
+    <!-- IMU 声明进 ros2_control:gz_ros2_control 按名字找到模型里的 imu 传感器,
+         把数据挂到这些 state_interface,由 imu_sensor_broadcaster 广播成 ROS 话题。
+         (Fortress 的 Sensors 系统不直接发布 gz 侧 IMU 话题,必须走这条路) -->
+    <sensor name="imu">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+  </ros2_control>
+
+
+
+<gazebo>
+  <!-- Fortress/Humble 上的正确写法:filename 用包内系统插件名,不是 lib*.so -->
+  <plugin filename="ign_ros2_control-system" name="ign_ros2_control::IgnitionROS2ControlPlugin">
+    <parameters>$(arg controller_yaml)</parameters>
+    <ros>
+      <!-- 走护栏通道:cmd_vel_guard 订阅 /cmd_vel,过滤后发 /cmd_vel_safe 给控制器。
+           不想要护栏时,把这里改回 /cmd_vel 即可直通 -->
+      <remapping>/diff_drive_controller/cmd_vel_unstamped:=/cmd_vel_safe</remapping>
+      <remapping>/diff_drive_controller/odom:=/odom</remapping>
+    </ros>
+  </plugin>
+
+  <!-- 真值里程计:位姿/速度由物理引擎直接给出,不经轮子。
+       用途:打滑检测(轮式 odom 会被打滑骗,gz 真值不会)、跟踪验证。
+       话题 /model/myrobot/odometry,由 launch 里的 parameter_bridge 转 ROS -->
+  <plugin filename="ignition-gazebo-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+    <odom_publish_frequency>50</odom_publish_frequency>
+  </plugin>
+</gazebo>
+
+<gazebo reference="laser_link">
+  <!-- Fortress 只有 gpu_lidar(走 ogre2 渲染),没有 classic 的 CPU ray;
+       数据走 gz-transport → 由 launch 里的 ros_gz_bridge 转成 ROS /scan -->
+  <sensor name="laser" type="gpu_lidar">
+    <pose>0 0 0 0 0 0</pose>
+    <visualize>true</visualize>              <!-- 在 Gazebo 里画出红色扫描线 -->
+    <update_rate>10</update_rate>            <!-- 每秒 10 帧扫描 -->
+    <topic>/scan</topic>                     <!-- gz 侧话题名,直接对齐桥的另一端 -->
+    <gz_frame_id>laser_link</gz_frame_id>    <!-- 消息 frame_id 用 link 名,不用默认的带模型前缀长名 -->
+    <lidar>                                  <!-- Fortress 里 lidar 参数元素叫 <lidar>,classic 才叫 <ray> -->
+      <scan>
+        <horizontal>
+          <samples>360</samples>             <!-- 一圈采 360 个点,约 1° 分辨率 -->
+          <resolution>1</resolution>
+          <min_angle>-3.1415926</min_angle>  <!-- -180°( REP-103:0° 朝 x,逆时针为正)-->
+          <max_angle>3.1415926</max_angle>   <!-- +180°,即 360° 全向 -->
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.12</min>                      <!-- 最小盲区(实物雷达贴脸测不到)-->
+        <max>8.0</max>                       <!-- 最大量程 8 m -->
+        <resolution>0.01</resolution>
+      </range>
+      <noise>
+        <type>gaussian</type>
+        <stddev>0.01</stddev>                <!-- 模拟测量噪声 -->
+      </noise>
+    </lidar>
+  </sensor>
+</gazebo>
+
+<gazebo reference="imu_link">
+  <!-- 最小化对照实验:剥到只剩必需项,排查哪个标签挡住了传感器创建 -->
+  <sensor name="imu" type="imu">
+    <update_rate>100</update_rate>
+    <topic>/imu/data</topic>
+  </sensor>
+</gazebo>
+
+</robot>

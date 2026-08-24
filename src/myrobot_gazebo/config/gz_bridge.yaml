@@ -1,0 +1,12 @@
+# ros_gz_bridge 参数文件(parameter_bridge 的 yaml 形式,rosbot 同款)
+# 方向 GZ_TO_ROS = 只从 gz 仿真流向 ROS;以后要下行(如 cmd_vel)加 BIDIRECTIONAL 条目
+- topic_name: /clock
+  ros_type_name: rosgraph_msgs/msg/Clock
+  gz_type_name: ignition.msgs.Clock
+  direction: GZ_TO_ROS
+- topic_name: /scan
+  ros_type_name: sensor_msgs/msg/LaserScan
+  gz_type_name: ignition.msgs.LaserScan
+  direction: GZ_TO_ROS
+# 注:IMU 不走桥 —— Fortress 下 gz 侧 IMU 传感器不直接发 gz 话题,
+# 由 gz_ros2_control + imu_sensor_broadcaster 发布 /imu_sensor_broadcaster/imu
