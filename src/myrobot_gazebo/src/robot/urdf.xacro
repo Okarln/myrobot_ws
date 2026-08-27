@@ -6,6 +6,13 @@
        以后接实车硬件时,用 controller_yaml:=... 换成实车专用配置即可 -->
   <xacro:arg name="controller_yaml" default="$(find myrobot_gazebo)/config/ros2_controller.yaml"/>
 
+  <!-- kinematic_move:=true 时加载 VelocityControl 插件(launch 的
+       control:=kinematic 链):订阅 /model/myrobot/cmd_vel(车体系 Twist),
+       每步直接把模型速度设为指令值 —— 完全绕过轮子接触力,麦轮横移可用。
+       注意与 effort 物理闭环(control:=effort)互斥,只能二选一;
+       插件会把 z 向速度也钉在 0,此模式下出生高度必须取静平衡高度(0.1m)。 -->
+  <xacro:arg name="kinematic_move" default="false"/>
+
   <link name="base_link">
     <visual>
       <geometry>
@@ -306,6 +313,16 @@
     <odom_publish_frequency>50</odom_publish_frequency>
   </plugin>
 </gazebo>
+
+<!-- ============ 运动学直驱(可选,kinematic_move:=true 启用)============
+     Fortress 没有 Garden 才有的 PlanarMove,等价物是 VelocityControl:
+     订阅 /model/myrobot/cmd_vel(ignition.msgs.Twist,按模型自身坐标系解释),
+     每步直接设置模型速度,不经 PID/力矩/轮子摩擦。 -->
+<xacro:if value="$(arg kinematic_move)">
+  <gazebo>
+    <plugin filename="ignition-gazebo-velocity-control-system" name="ignition::gazebo::systems::VelocityControl"/>
+  </gazebo>
+</xacro:if>
 
 <gazebo reference="laser_link">
   <!-- Fortress 只有 gpu_lidar(走 ogre2 渲染),没有 classic 的 CPU ray;

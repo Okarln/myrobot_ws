@@ -50,6 +50,7 @@ Visualization Manager:
         Depth: 1
         Durability Policy: Volatile
         History Policy: Keep Last
+        
         Reliability Policy: Reliable
         Value: /global_costmap/costmap
     - Class: rviz_default_plugins/Map

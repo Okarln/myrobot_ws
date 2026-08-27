@@ -24,7 +24,14 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY src/robot launch config
+  DIRECTORY src/robot config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# launch 脚本实际位于源码树 config/launch/,仍安装到 share 的 launch/ 下,
+# 供 ros2 launch 与 myrobot_bringup 中的 IncludeLaunchDescription 引用
+install(
+  DIRECTORY config/launch
   DESTINATION share/${PROJECT_NAME}
 )
 

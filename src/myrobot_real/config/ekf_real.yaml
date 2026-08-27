@@ -1,0 +1,67 @@
+# robot_localization EKF(实车):轮式里程计 + YbImu 融合,发布 odom→base_link TF
+# 与仿真版(myrobot_gazebo/config/ekf.yaml)同构,差异:
+#   use_sim_time: false;imu0 = /imu/data(YbImu→madgwick 滤波输出);odom0 开 vy(麦轮横移反馈)
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: false
+    frequency: 25.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom          # odom→base_link 由本节点发布;map→odom 由 AMCL 管
+
+    transform_time_offset: 0.0
+    transform_timeout: 0.05
+    publish_tf: true
+    publish_acceleration: false
+
+    # ── 传感器 1:轮式里程计(wheel_kinematics 由四轮反馈正解)──
+    # 融合 vx+vy+vyaw 速度量;位姿由 EKF 积分,打滑时受 IMU 角速度压制
+    odom0: /odom
+    odom0_config: [false, false, false,   # x    y    z
+                   false, false, false,   # roll pitch yaw
+                   true,  true,  false,   # vx   vy   vz
+                   false, false, true,    # vroll vpitch vyaw
+                   false, false, false]   # ax   ay   az
+    odom0_queue_size: 10
+    odom0_nodelay: true
+    odom0_differential: false
+    odom0_relative: false
+
+    # ── 传感器 2:YbImu(madgwick 滤波后 /imu/data)────────────
+    # 融合 yaw + vyaw;imu0_relative 取首帧为零点(开机朝向 = 0°)
+    imu0: /imu/data
+    imu0_config: [false, false, false,
+                  false, false, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 10
+    imu0_nodelay: true
+    imu0_differential: false
+    imu0_relative: true
+    imu0_remove_gravitational_acceleration: true
+
+    reset_on_time_jump: false
+    predict_to_current_time: false
+    print_diagnostics: false
+
+    dynamic_process_noise_covariance: true
+    process_noise_covariance: [5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  5e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  1e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  3e-3,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  4e-2,  0.0,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5,  0.0,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5,  0.0,
+                               0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  1e-5]

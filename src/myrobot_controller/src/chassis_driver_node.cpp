@@ -2,12 +2,16 @@
 // 控制逻辑从 STM32 固件(Speed_Robot_Coordinate.c / pid.c)迁移至此,
 // 固件侧只执行"电流转发到 CAN + 转速上报"。
 //
-// 三种运行模式(mode 参数):
-//   serial    实车:串口发电流帧/收转速帧(对应固件 host_link.c 协议)
-//   gazebo    仿真闭环:订阅 /joint_states 取轮速反馈,
-//             PID 电流经电流->力矩换算后发 /wheel_effort_controller/commands,
-//             由 gz ros2_control 的 effort 控制器驱动仿真机器人
-//   simulated 无硬件自测:节点内一阶模型模拟电机响应
+// 四种运行模式(mode 参数):
+//   serial     实车:串口发电流帧/收转速帧(对应固件 host_link.c 协议)
+//   gazebo     仿真闭环:订阅 /joint_states 取轮速反馈,
+//              PID 电流经电流->力矩换算后发 /wheel_effort_controller/commands,
+//              由 gz ros2_control 的 effort 控制器驱动仿真机器人
+//   kinematic  运动学直驱仿真(不走轮子物理):目标轮速经一阶响应后正解算出
+//              车体速度,发布到 kinematic_cmd_vel(launch 重映射到 gz
+//              VelocityControl 插件的 /model/<robot>/cmd_vel),插件每步直接
+//              设置模型速度 —— 旁路 PID/力矩/接触力,横移可用,适合导航联调
+//   simulated  无硬件自测:节点内一阶模型模拟电机响应
 //
 // 数据流: /cmd_vel(m/s, rad/s) -> 麦轮逆解算(电机 rpm) -> 每轮 PID
 //         -> [串口电流帧 | effort 指令] ;反馈 -> /odom, /chassis_debug
@@ -60,6 +64,8 @@ public:
     // gazebo 模式:PID 电流(count)换算成轮轴力矩(N·m)
     // M3508+C620: 16384 count ≈ 4.9 N·m(输出轴) → 0.0003 N·m/count
     torque_per_current_ = declare_parameter<double>("torque_per_current", 0.0003);
+    // kinematic/simulated 模式:理想执行器一阶响应时间常数 [s],0 = 瞬时到位
+    motor_tau_ = declare_parameter<double>("motor_tau", 0.05);
 
     max_vx_ = declare_parameter<double>("max_vx", 2.0);
     max_vy_ = declare_parameter<double>("max_vy", 2.0);
@@ -102,6 +108,8 @@ public:
     if (mode_ != "gazebo") {
       // gazebo 模式下 /joint_states 由 joint_state_broadcaster 发布,
       // 我们只订阅,不再重复发布(否则反馈自环)。
+      // kinematic 模式的 launch 不起 broadcaster,轮子旋转由本节点发布
+      // (RViz 可见,gz 窗口里轮子不转属预期)。
       pub_joint_ = create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
     }
 
@@ -119,6 +127,11 @@ public:
         [this](sensor_msgs::msg::JointState::ConstSharedPtr msg) { on_joint_states(msg); });
       pub_effort_ = create_publisher<std_msgs::msg::Float64MultiArray>(
         "wheel_effort_controller/commands", 10);
+    } else if (mode_ == "kinematic") {
+      // 运动学直驱:正解算出的车体速度交给 gz VelocityControl 插件
+      // (launch 把 kinematic_cmd_vel 重映射到 /model/<robot>/cmd_vel 桥)
+      pub_velcmd_ = create_publisher<geometry_msgs::msg::Twist>(
+        "kinematic_cmd_vel", 10);
     }
 
     timer_ = create_wall_timer(
@@ -237,10 +250,11 @@ private:
     // ---- 3. 取反馈 ----
     std::array<double, 4> fb{};
     bool fb_fresh;
-    if (mode_ == "simulated") {
-      constexpr double tau = 0.05;  // 电机响应时间常数
+    if (mode_ == "simulated" || mode_ == "kinematic") {
+      // 理想执行器:一阶响应逼近目标转速(kinematic 时这就是"车体运动的来源",
+      // 无打滑无空转;反馈恒新鲜)
+      const double alpha = dt / (motor_tau_ + dt);
       for (size_t i = 0; i < 4; ++i) {
-        const double alpha = dt / (tau + dt);
         sim_rpm_[i] += (target_rpm[i] - sim_rpm_[i]) * alpha;
         fb[i] = sim_rpm_[i];
       }
@@ -250,13 +264,17 @@ private:
       fb_fresh = (t - fb_stamp_).seconds() < fb_timeout_;
       fb = fb_fresh ? fb_rpm_ : std::array<double, 4>{};  // 反馈丢失按 0 处理
     }
+    // 轮速正解算 -> 车体系速度(kinematic 输出与里程计共用)
+    const auto body = kin_.forward(fb);
 
-    // ---- 4. 每轮速度环 PID -> 电流 ----
-    int16_t current[4];
-    for (size_t i = 0; i < 4; ++i) {
-      const float err = static_cast<float>(target_rpm[i]) -
-        static_cast<float>(fb_fresh ? fb[i] : 0.0);
-      current[i] = static_cast<int16_t>(pid_[i].update(err, dt));
+    // ---- 4. 每轮速度环 PID -> 电流(kinematic 旁路:轮速已直接到位)----
+    int16_t current[4] = {0, 0, 0, 0};
+    if (mode_ != "kinematic") {
+      for (size_t i = 0; i < 4; ++i) {
+        const float err = static_cast<float>(target_rpm[i]) -
+          static_cast<float>(fb_fresh ? fb[i] : 0.0);
+        current[i] = static_cast<int16_t>(pid_[i].update(err, dt));
+      }
     }
 
     // ---- 5. 输出 ----
@@ -280,11 +298,18 @@ private:
         -current[2] * torque_per_current_    // 右后
       };
       pub_effort_->publish(out);
+    } else if (mode_ == "kinematic") {
+      // 运动学直驱:车体系速度交给 gz VelocityControl 插件直接设置模型速度
+      // (插件按实体自身坐标系解释 Twist,无需再做 yaw 旋转)
+      geometry_msgs::msg::Twist out;
+      out.linear.x = body[0];
+      out.linear.y = body[1];
+      out.angular.z = body[2];
+      pub_velcmd_->publish(out);
     }
 
     // ---- 6. 里程计(用反馈算,不用目标值)----
     if (fb_fresh) {
-      const auto body = kin_.forward(fb);
       const double yaw_mid = yaw_ + body[2] * dt * 0.5;
       x_ += (body[0] * std::cos(yaw_mid) - body[1] * std::sin(yaw_mid)) * dt;
       y_ += (body[0] * std::sin(yaw_mid) + body[1] * std::cos(yaw_mid)) * dt;
@@ -392,6 +417,7 @@ private:
   double control_rate_ = 100.0, cmd_timeout_ = 0.5, fb_timeout_ = 0.5;
   double max_vx_ = 2.0, max_vy_ = 2.0, max_wz_ = 4.0;
   double torque_per_current_ = 0.0003;
+  double motor_tau_ = 0.05;
   MecanumKinematics kin_;
   std::array<Pid, 4> pid_;
   std::vector<std::string> joint_names_;
@@ -409,6 +435,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pub_path_;
   rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr pub_debug_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_effort_;
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_velcmd_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
 

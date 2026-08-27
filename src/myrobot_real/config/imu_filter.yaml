@@ -1,0 +1,7 @@
+# YbImu Madgwick 滤波(实车):/imu/data_raw → /imu/data
+imu_filter_madgwick:
+  ros__parameters:
+    use_mag: false            # 磁力计易受电机干扰,导航场景关闭(纯陀螺积分+重力对齐)
+    world_frame: enu
+    publish_tf: false         # TF 由 EKF 统一发布
+    orientation_stddev: 0.01

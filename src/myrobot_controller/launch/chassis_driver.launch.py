@@ -21,7 +21,8 @@ def generate_launch_description():
             description='USB-TTL 串口设备'),
         DeclareLaunchArgument(
             'mode', default_value='serial',
-            description='serial(实车)/ gazebo(仿真闭环)/ simulated(内置模型自测)'),
+            description='serial(实车)/ gazebo(PID 力矩仿真闭环)/ '
+                        'kinematic(运动学直驱仿真,无轮物理)/ simulated(内置模型自测)'),
         Node(
             package='myrobot_controller',
             executable='chassis_driver',

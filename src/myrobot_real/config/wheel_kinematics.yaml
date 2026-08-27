@@ -1,0 +1,15 @@
+# wheel_kinematics 参数(标定结果写这里,重启 launch 生效)
+# 标定流程见 docs/wheel_calibration.md;数值含义见 wheel_kinematics.py 参数声明
+wheel_kinematics:
+  ros__parameters:
+    wheel_radius: 0.0763     # 轮半径 [m](实测 76mm,视为一致;直线测试再微调)
+    half_diagonal: 0.625     # lx+ly [m](前后轮距 47.5cm/2 + 左右 77.5cm/2;旋转测试微调)
+    gear_ratio: 19.2         # M3508 减速比(精确值,勿改)
+    max_wheel_rpm: 9000.0    # 固件硬限幅
+    cmd_timeout: 0.5
+    keepalive_hz: 10.0
+    odom_frame: odom
+    base_frame: base_link
+    vx_cov: 0.03
+    vy_cov: 0.05             # 横移打滑大,可信度低
+    wz_cov: 0.03
